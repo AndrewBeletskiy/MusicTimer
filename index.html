@@ -9,7 +9,7 @@
 <h1>MusicTimer</h1>
 	<label>Как много времени должно покрыться музыкой: </label>
 	<input id="neededTime"></input>
-	<button onclick="foundList(neededTime);">Получить список</button>
+	<button onclick="foundList(neededTime); console.log(currentRes);">Получить список</button>
 	<div id="result"></div>
 <script type="text/javascript"> 
 	var isVKInited = false;
@@ -19,12 +19,42 @@
 	var input;
 	var currentTime;
 	var currentList = [];
+	var currentRes = [];
+	var ResTime;
+	var token = [];
 	var output;
 	var albumID;
+	var MINDURATION = 20;
+	var ownerID = 29522792;
 	var Time = function(h,m,s){
 		this.h = h ? h : 0;
 		this.m = m ? m : 0;
 		this.s = s ? s : 0;
+		this.toString = function()
+		{
+			var thereWasSomething = false
+			var res = "";
+			if (this.h>0)
+			{
+				res = this.h+"h"
+				thereWasSomething = true;
+			}
+			if (this.m>0)
+			{
+				res += (thereWasSomething) ? " " : "";
+				thereWasSomething = true;
+				res += this.m+"m";
+			}
+			if (this.s>0)
+			{
+				res += (thereWasSomething) ? " " : "";
+				thereWasSomething = true;
+				res += this.s+"s";
+			}
+			return res;
+
+
+		}
 		this.normalize = function()
 		{
 			this.m += Math.floor(this.s / 60);
@@ -74,29 +104,60 @@
 		{
 			this.getFromSeconds(t.duration() + this.duration());
 		};
+		this.addSeconds = function(seconds)
+		{			
+			this.getFromSeconds(this.duration() + seconds);
+		};
+
+	};
+	var addToCurrentList = function(item){
+		if (!item.taken)
+		{
+			currentList.push(item);
+			currentTime.addSeconds(item.duration);
+			item.taken = true;
+		}
+
 	};
 	var foundList = function(time)
 	{
-		console.clear();
-		currentTime = new Time(0,0,0);
 		currentList = [];
-		for (var i = 0; (currentTime.duration()<neededTime.duration()) && (i<N); i++)
-		{
-			console.log('added');
-			currentList.push(musicList[i]);
-			currentTime.add(new Time(0,0,musicList[i].duration));
-		}
-		VK.api("audio.addAlbum", {title: "Music Timer"}, function(data) {
-			albumID = data.response.album_id;
+		currentTime = new Time(0,0,0);
+		var getList = function(time){
+			for (var i =0; currentTime.duration()<time.duration() && (i<N); i++)
+			{
+				if (time.duration() - currentTime.duration() >= musicList[i].duration && musicList[i].duration>MINDURATION)
+				{
+					addToCurrentList(musicList[i]);
+				}
+			}
+		};
+		getList(time);
+		console.log(currentList);
+		console.log(currentTime);
+		VK.api("audio.addAlbum", {title: "Music Timer"}, function(data){
+				albumID = data.response.album_id;
+				console.log("--");
+				console.log(albumID);
 		});
-		console.log(albumID);
-		
+		setTimeout(function(){
+			var string = "";
+			for (var i = 0; i < currentList.length; i++) {
+				string += (i ? ", " : "") + currentList[i].id;
+			};
+			console.log(string);
+			VK.api("audio.moveToAlbum", {"album_id": albumID, "audio_ids" : string}, function(data){
+				if (data == 1)
+					output.innerHTML = "Your music for " + neededTime + " was added to the Music Timer album in your audio list."
+			});
+		}, 1000);
 	}
 
 	var doSomething = function(){
 		if (isVKInited)
 		{
-			VK.api("audio.get", {count: 6000}, function(data) {
+
+			VK.api("audio.get", {"owner_id": ownerID, count: 6000}, function(data) {
 				musicList = data.response.items;
 				N = data.response.count;
 				console.log(musicList);
