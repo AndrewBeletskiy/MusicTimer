@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Music Timer</title>
+</head>
+<body>
+<script src="http://vk.com/js/api/xd_connection.js?2"  type="text/javascript"></script>
+<h1>MusicTimer</h1>
+	<label>Как много времени должно покрыться музыкой: </label>
+	<input id="neededTime"></input>
+	<button onclick="foundList(neededTime);">Получить список</button>
+	<div id="result"></div>
+<script type="text/javascript"> 
+	var isVKInited = false;
+	var N = 0;
+	var musicList;
+	var neededTime;
+	var input;
+	var currentTime;
+	var currentList = [];
+	var output;
+	var albumID;
+	var Time = function(h,m,s){
+		this.h = h ? h : 0;
+		this.m = m ? m : 0;
+		this.s = s ? s : 0;
+		this.normalize = function()
+		{
+			this.m += Math.floor(this.s / 60);
+			this.s -= Math.floor(this.s / 60)*60;
+
+			this.h += Math.floor(this.m / 60);
+			this.m -= Math.floor(this.m / 60)*60;
+
+			this.s = Math.floor(this.s);
+			this.m = Math.floor(this.m);
+			this.h = Math.floor(this.h);
+		};
+		this.normalize();
+		this.getFromString = function(string){
+			var s = string.split(':');
+			if (s.length == 3)
+			{
+				this.h = Math.floor(+s[0]);
+				this.m = Math.floor(+s[1]);
+				this.s = Math.floor(+s[2]);				
+				this.normalize();
+			} else if (s.length == 2)
+			{
+				this.h = 0;
+				this.m = +s[0];
+				this.s = +s[1];
+				this.normalize();
+			} else
+			{
+				this.h = 0;
+				this.m = 0;
+				this.s = +s[0];
+				this.normalize();
+			}
+		};
+		this.getFromSeconds = function(seconds){
+			this.h = Math.floor(seconds / 3600);
+			seconds = seconds - this.h*3600;
+			this.m = Math.floor(seconds / 60);
+			seconds = seconds - this.m*60;
+			this.s = Math.floor(seconds);
+		};
+		this.duration = function(){
+			return this.h*60*60+this.m*60+this.s;
+		};
+		this.add = function(t)
+		{
+			this.getFromSeconds(t.duration() + this.duration());
+		};
+	};
+	var foundList = function(time)
+	{
+		console.clear();
+		currentTime = new Time(0,0,0);
+		currentList = [];
+		for (var i = 0; (currentTime.duration()<neededTime.duration()) && (i<N); i++)
+		{
+			console.log('added');
+			currentList.push(musicList[i]);
+			currentTime.add(new Time(0,0,musicList[i].duration));
+		}
+		VK.api("audio.addAlbum", {title: "Music Timer"}, function(data) {
+			albumID = data.response.album_id;
+		});
+		console.log(albumID);
+		
+	}
+
+	var doSomething = function(){
+		if (isVKInited)
+		{
+			VK.api("audio.get", {count: 6000}, function(data) {
+				musicList = data.response.items;
+				N = data.response.count;
+				console.log(musicList);
+				neededTime = new Time();
+				input = document.getElementById('neededTime');
+			});
+		   output = document.getElementById("result");
+		   
+		   window.addEventListener('keyup', function(e){
+		   		neededTime.getFromString(input.value);
+		   });
+		}
+	}
+	VK.init(function() { 
+		   console.clear();
+		   console.log('VK was initialized');
+		   isVKInited = true;
+		   doSomething();
+		  
+		}, function() {
+		   console.clear();
+		   console.log('VK was not initialized');
+		}, '5.44'); 
+</script>
+	
+</body>
+</html>
